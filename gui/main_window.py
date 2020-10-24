@@ -1,7 +1,10 @@
 from PyQt5.QtWidgets import QWidget, QPushButton, QMainWindow, QLabel
 from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout
 from PyQt5.QtWidgets import QFileDialog
+from PyQt5.QtWidgets import QTabWidget
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from helpers.parser import Parser
+from helpers.plotter import PlotCanvas
 import os
 import platform
 
@@ -27,11 +30,21 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
         layout = QVBoxLayout()
-        control_panel = ControlPanel()
-        layout.addWidget(control_panel)
+        self.tabs = QTabWidget()
+        self.control_panel = ControlPanel()
+        self.tabs.addTab(self.control_panel, "Control Panel")
+        self.plot_interface = PlotInterface()
+        self.control_panel.plot_button.clicked.connect(self.start_plot)
+        self.tabs.addTab(self.plot_interface, "Plots")
+        layout.addWidget(self.tabs)
         widget = QWidget()
         widget.setLayout(layout)
         self.setCentralWidget(widget)
+
+    def start_plot(self):
+        if self.control_panel.parser:
+            self.plot_interface.plot(self.control_panel.parser.get_plotting_data(
+                self.control_panel.parsed_file))
 
 
 class ControlPanel(QWidget):
@@ -54,6 +67,7 @@ class ControlPanel(QWidget):
         layout = QVBoxLayout()
         layout.addLayout(import_layout)
         layout.addLayout(export_layout)
+        self.parser = None
         self.setLayout(layout)
 
     def browse(self):
@@ -76,6 +90,24 @@ class ControlPanel(QWidget):
             csv_file.close()
 
     def _parse_tcr_file(self, filename):
-        parser = Parser(filename)
-        self.parsed_file = parser.parse_file()
+        self.parser = Parser(filename)
+        self.parsed_file = self.parser.parse_file()
         self.import_label.setText(filename.rsplit(SEPARATOR, 1)[1])
+
+
+class PlotInterface(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.parameters = None
+        self.canvas = PlotCanvas()
+        self.navigation_bar = NavigationToolbar(self.canvas, self)
+        canvas_layout = QVBoxLayout()
+        canvas_layout.addWidget(self.canvas)
+        canvas_layout.addWidget(self.navigation_bar)
+        self.setLayout(canvas_layout)
+
+    def plot(self, parameters):
+        self.canvas.axes.clear()
+        if parameters:
+            for parameter in parameters:
+                self.canvas.plot(parameter)
