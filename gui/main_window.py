@@ -1,10 +1,11 @@
 from PyQt5.QtWidgets import QWidget, QPushButton, QMainWindow, QLabel
 from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout
 from PyQt5.QtWidgets import QFileDialog
-from PyQt5.QtWidgets import QTabWidget
+from PyQt5.QtWidgets import QTabWidget, QTableWidget, QTableWidgetItem
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from helpers.parser import Parser
 from helpers.plotter import PlotCanvas
+from helpers import config
 import os
 import platform
 
@@ -23,6 +24,7 @@ class MainWindow(QMainWindow):
         self.top = 10
         self.width = 640
         self.height = 480
+        config.init_config()
         self.initUI()
         self.show()
 
@@ -59,14 +61,21 @@ class ControlPanel(QWidget):
         import_layout.addWidget(self.import_label)
         import_layout.addWidget(self.import_button)
         export_layout = QVBoxLayout()
+        export_layout.addLayout(import_layout)
         self.export_button = QPushButton("Export!")
         self.export_button.clicked.connect(self.export_to_csv)
         self.plot_button = QPushButton("Plot!")
         export_layout.addWidget(self.export_button)
         export_layout.addWidget(self.plot_button)
-        layout = QVBoxLayout()
-        layout.addLayout(import_layout)
+        parameters_layout = QVBoxLayout()
+        self.table = self._init_table()
+        parameters_layout.addWidget(self.table)
+        self.update_button = QPushButton("Update parameters")
+        self.update_button.clicked.connect(self.update_parameters)
+        parameters_layout.addWidget(self.update_button)
+        layout = QHBoxLayout()
         layout.addLayout(export_layout)
+        layout.addLayout(parameters_layout)
         self.parser = None
         self.setLayout(layout)
 
@@ -89,11 +98,63 @@ class ControlPanel(QWidget):
                 csv_file.write(line)
             csv_file.close()
 
+    def update_parameters(self):
+        rows = self._get_table_rows(self.table.rowCount(), self.table.columnCount())
+        config.update_parameters(rows)
+        if self.filename:
+            self._parse_tcr_file(self.filename)
+
+    def _get_table_rows(self, nrows, ncols):
+        rows = []
+        for i in range(1, nrows):
+            row = []
+            for j in range (0, ncols):
+                item = self.table.item(i, j)
+                if item:
+                    if not item.text() == '':
+                        row.append(item.text())
+                else:
+                    break
+            if len(row) == ncols:
+                rows.append(row)
+        return rows
+
     def _parse_tcr_file(self, filename):
         self.parser = Parser(filename)
         self.parsed_file = self.parser.parse_file()
         self.import_label.setText(filename.rsplit(SEPARATOR, 1)[1])
-
+    
+    def _init_table(self):
+        table = QTableWidget()
+        table.setColumnCount(7)
+        table.setRowCount(11)
+        table.setItem(0, 0, QTableWidgetItem("Name"))
+        table.setItem(0, 1, QTableWidgetItem("PGN"))
+        table.setItem(0, 2, QTableWidgetItem("Multiplier"))
+        table.setItem(0, 3, QTableWidgetItem("Offset"))
+        table.setItem(0, 4, QTableWidgetItem("Units"))
+        table.setItem(0, 5, QTableWidgetItem("Lenght"))
+        table.setItem(0, 6, QTableWidgetItem("Start"))
+        parameters = config.get_parameters()
+        i = 1
+        for pgn in parameters.keys():
+            for name in parameters[pgn].keys():
+                bits = parameters[pgn][name]['Bits']
+                bits = bits.split("-")
+                if len(bits) == 1:
+                    length = "1"
+                else:
+                    length = str(int(bits[1]) - int(bits[0]))
+                start = bits[0]
+                table.setItem(i, 0, QTableWidgetItem(name))
+                table.setItem(i, 1, QTableWidgetItem(pgn))
+                table.setItem(i, 2, QTableWidgetItem(parameters[pgn][name]['Rate']))
+                table.setItem(i, 3, QTableWidgetItem(str(parameters[pgn][name]['Offset'])))
+                table.setItem(i, 4, QTableWidgetItem(parameters[pgn][name]['Measure']))
+                table.setItem(i, 5, QTableWidgetItem(length))
+                table.setItem(i, 6, QTableWidgetItem(start))
+                i = i+1
+        return table 
 
 class PlotInterface(QWidget):
     def __init__(self):

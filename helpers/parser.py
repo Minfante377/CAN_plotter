@@ -1,5 +1,5 @@
 import re
-from consts.consts import params
+from helpers import config
 
 _RE_COMBINE_WHITESPACE = re.compile(r"\s+")
 HEADER = ";"
@@ -12,6 +12,7 @@ class Parser():
         tcr_file = open(filename, "r")
         self.lines = tcr_file.readlines()
         self.erase_header(HEADER)
+        self.params = config.get_parameters()
 
     def erase_header(self, HEADER):
         i = 0
@@ -21,6 +22,7 @@ class Parser():
 
     def parse_file(self):
         parsed_output = []
+        self.params = config.get_parameters()
         for line in self.lines:
             line = line.strip("\n")
             line = _RE_COMBINE_WHITESPACE.sub(" ", line).strip()
@@ -47,8 +49,9 @@ class Parser():
 
     def get_plotting_data(self, data, excluded=[]):
         plotting_data = []
-        for group in params.keys():
-            for parameter in params[group].keys():
+        self.params = config.get_parameters()
+        for group in self.params.keys():
+            for parameter in self.params[group].keys():
                 x = []
                 y = []
                 if parameter not in excluded:
@@ -60,4 +63,4 @@ class Parser():
         return plotting_data
 
     def _hex_to_params(self, filtered_id):
-        return params.get(filtered_id)
+        return self.params.get(filtered_id)
