@@ -1,7 +1,8 @@
-from PyQt5.QtWidgets import QWidget, QPushButton, QMainWindow, QLabel
+from PyQt5.QtWidgets import QWidget, QPushButton, QMainWindow, QLabel, QLineEdit
 from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout
 from PyQt5.QtWidgets import QFileDialog
 from PyQt5.QtWidgets import QTabWidget, QTableWidget, QTableWidgetItem
+from PyQt5.QtWidgets import QMessageBox
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from helpers.parser import Parser
 from helpers.plotter import PlotCanvas
@@ -53,14 +54,22 @@ class ControlPanel(QWidget):
 
     def __init__(self):
         super().__init__()
+        self.message = QMessageBox()
         import_layout = QHBoxLayout()
         self.import_label = QLabel("Select a trc file to import")
         self.import_button = QPushButton("Browse...")
         self.import_button.clicked.connect(self.browse)
+        self.parse_button = QPushButton("Parse")
+        self.parse_button.clicked.connect(self._parse_tcr_file)
         self.filename = None
         import_layout.addWidget(self.import_label)
         import_layout.addWidget(self.import_button)
+        import_layout.addWidget(self.parse_button)
         export_layout = QVBoxLayout()
+        export_layout.SetMaximumSize = 150
+        self.ts_input = QLineEdit(self)
+        self.ts_input.setPlaceholderText("Average Time Step (ms)")
+        export_layout.addWidget(self.ts_input)
         export_layout.addLayout(import_layout)
         self.export_button = QPushButton("Export!")
         self.export_button.clicked.connect(self.export_to_csv)
@@ -84,7 +93,7 @@ class ControlPanel(QWidget):
                                                   "Tcr files(*.trc)")
         if filename:
             self.filename = filename
-            self._parse_tcr_file(self.filename)
+            self.import_label.setText(filename.rsplit(SEPARATOR, 1)[1])
 
     def export_to_csv(self):
         filename, _ = QFileDialog.getSaveFileName(self, "Select CSV file location", os.getcwd(),
@@ -97,12 +106,21 @@ class ControlPanel(QWidget):
                 line = "{},{},{},{}\n".format(data[0], data[1], data[2], data[3])
                 csv_file.write(line)
             csv_file.close()
+            self.message.setWindowTitle("Information!")
+            self.message.setText("Data exported to CSV file.")
+            self.message.show()
+        else:
+            self.message.setWindowTitle("Information!")
+            self.message.setText("There is no file to export.")
+            self.message.show()
+
 
     def update_parameters(self):
         rows = self._get_table_rows(self.table.rowCount(), self.table.columnCount())
         config.update_parameters(rows)
-        if self.filename:
-            self._parse_tcr_file(self.filename)
+        self.message.setWindowTitle("Information!")
+        self.message.setText("Parameters updated correctly.")
+        self.message.show()
 
     def _get_table_rows(self, nrows, ncols):
         rows = []
@@ -120,10 +138,48 @@ class ControlPanel(QWidget):
         return rows
 
     def _parse_tcr_file(self, filename):
+        print("Parsing...")
+        if not self.filename:
+            self.message.setWindowTitle("Information!")
+            self.message.setText("There is no file to parse!")
+            self.message.show()
+            return
         self.parser = Parser(filename)
         self.parsed_file = self.parser.parse_file()
-        self.import_label.setText(filename.rsplit(SEPARATOR, 1)[1])
-    
+        if self.ts_input.text() == '':
+            ts = 1000
+        else:
+            ts = float(self.ts_input.text())
+        self.parsed_file = self._average(ts)
+        self.message.setWindowTitle("Information!")
+        self.message.setText("File parsed correctly.")
+        self.message.show()
+
+    def _average(self, ts):
+        parameters = config.get_parameters()
+        avg_parameters = []
+        for pgn in parameters.keys():
+            for parameter in parameters[pgn].keys():
+                last_time = 0
+                value_sum = 0
+                count = 0
+                for d in self.parsed_file:
+                    if d[0] == parameter:
+                        if float(d[1]) - last_time < ts:
+                            value_sum = value_sum + float(d[2])
+                            count = count + 1
+                            last_time = float(d[1])
+                        else:
+                            if count == 0:
+                                value_sum = float(d[2])
+                                count = 1
+                            avg_parameters.append((d[0], str(last_time), str(value_sum / count),
+                                                   d[3]))
+                            value_sum = 0
+                            count = 0
+                            last_time = float(d[1])
+        return avg_parameters
+
     def _init_table(self):
         table = QTableWidget()
         table.setColumnCount(7)
@@ -166,9 +222,13 @@ class PlotInterface(QWidget):
         canvas_layout.addWidget(self.canvas)
         canvas_layout.addWidget(self.navigation_bar)
         self.setLayout(canvas_layout)
+        self.message = QMessageBox()
 
     def plot(self, parameters):
         self.canvas.axes.clear()
         if parameters:
             for parameter in parameters:
                 self.canvas.plot(parameter)
+        self.message.setWindowTitle("Information!")
+        self.message.setText("Plot ready!")
+        self.message.show()
