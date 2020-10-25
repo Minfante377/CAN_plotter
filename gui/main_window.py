@@ -138,13 +138,12 @@ class ControlPanel(QWidget):
         return rows
 
     def _parse_tcr_file(self, filename):
-        print("Parsing...")
         if not self.filename:
             self.message.setWindowTitle("Information!")
             self.message.setText("There is no file to parse!")
             self.message.show()
             return
-        self.parser = Parser(filename)
+        self.parser = Parser(self.filename)
         self.parsed_file = self.parser.parse_file()
         if self.ts_input.text() == '':
             ts = 1000
@@ -173,6 +172,7 @@ class ControlPanel(QWidget):
                             if count == 0:
                                 value_sum = float(d[2])
                                 count = 1
+                                last_time = float(d[1])
                             avg_parameters.append((d[0], str(last_time), str(value_sum / count),
                                                    d[3]))
                             value_sum = 0
