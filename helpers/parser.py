@@ -47,19 +47,18 @@ class Parser():
                     parsed_output.append((name, ts, value, measure))
         return parsed_output
 
-    def get_plotting_data(self, data, excluded=[]):
+    def get_plotting_data(self, data):
         plotting_data = []
         self.params = config.get_parameters()
         for group in self.params.keys():
             for parameter in self.params[group].keys():
                 x = []
                 y = []
-                if parameter not in excluded:
-                    for d in data:
-                        if d[0] == parameter:
-                            x.append(float(d[1]))
-                            y.append(float(d[2]))
-                    plotting_data.append((x, y, parameter))
+                for d in data:
+                    if d[0] == parameter:
+                        x.append(float(d[1]))
+                        y.append(float(d[2]))
+                plotting_data.append((x, y, parameter))
         return plotting_data
 
     def _hex_to_params(self, filtered_id):

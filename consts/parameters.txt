@@ -1,1 +1,1 @@
-{'FEF2': {'Fuel Rate': {'Bits': '0-2', 'Rate': '0.05', 'Offset': 0, 'Measure': 'l'}}, 'F004': {'Engine Speed': {'Bits': '3-5', 'Rate': '0.125', 'Offset': 0, 'Measure': 'RPM'}, 'Engine torque': {'Bits': '2', 'Rate': '1', 'Offset': -125, 'Measure': '%'}}}
+{'FEF2': {'Fuel Rate': {'Bits': '0-2', 'Rate': '0.05', 'Offset': 0, 'Measure': 'l', 'Draw': 'true'}}, 'F004': {'Engine Speed': {'Bits': '3-5', 'Rate': '0.125', 'Offset': 0, 'Measure': 'RPM', 'Draw': 'false'}, 'Engine torque': {'Bits': '2', 'Rate': '1', 'Offset': -125, 'Measure': '%', 'Draw': 'false'}}}

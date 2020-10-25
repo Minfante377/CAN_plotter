@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import QMessageBox
 from PyQt5.QtWidgets import QCheckBox, QComboBox
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from helpers.parser import Parser
-from helpers.plotter import PlotCanvas
+from helpers.plotter import PlotCanvas, HistogramCanvas
 from helpers import config
 import os
 import platform
@@ -40,6 +40,8 @@ class MainWindow(QMainWindow):
         self.plot_interface = PlotInterface()
         self.control_panel.plot_button.clicked.connect(self.start_plot)
         self.tabs.addTab(self.plot_interface, "Plots")
+        self.histogram_interface = HistogramInterface()
+        self.tabs.addTab(self.histogram_interface, "Histograms")
         layout.addWidget(self.tabs)
         widget = QWidget()
         widget.setLayout(layout)
@@ -49,12 +51,11 @@ class MainWindow(QMainWindow):
         if self.control_panel.parser:
             plotting_data = self.control_panel.parser.get_plotting_data(
                     self.control_panel.parsed_file)
-            if self.control_panel.plot_x_y.isChecked():
-                x_label = self.control_panel.x_box.currentText()
-                y_label = self.control_panel.y_box.currentText()
-                self.plot_interface.plot_x_y(plotting_data, x_label, y_label)
-            else:
-                self.plot_interface.plot(plotting_data)
+            x_label = self.control_panel.x_box.currentText()
+            y_label = self.control_panel.y_box.currentText()
+            self.histogram_interface.plot_x_y(plotting_data, x_label, y_label)
+            excluded = config.get_excluded_from_plotting()
+            self.plot_interface.plot(plotting_data, excluded)
 
 
 class ControlPanel(QWidget):
@@ -78,20 +79,24 @@ class ControlPanel(QWidget):
         self.ts_input.setPlaceholderText("Average Time Step (ms)")
         export_layout.addWidget(self.ts_input)
         export_layout.addLayout(import_layout)
-        self.plot_x_y = QCheckBox("Plot x-y values")
+        self.histogram_check = QCheckBox("Histogram with 3 parameters")
         self.x_box = QComboBox()
         self.y_box = QComboBox()
+        self.selectable_box = QComboBox()
         self.init_combo_boxes()
         xy_plot_layout = QHBoxLayout()
         x_label = QLabel("X:")
         y_label = QLabel("Y:")
-        xy_plot_layout.addWidget(self.plot_x_y)
+        selectable_label = QLabel("Selectable:")
+        xy_plot_layout.addWidget(self.histogram_check)
         xy_plot_layout.addWidget(x_label)
         xy_plot_layout.addWidget(self.x_box)
         xy_plot_layout.addWidget(y_label)
         xy_plot_layout.addWidget(self.y_box)
+        xy_plot_layout.addWidget(selectable_label)
+        xy_plot_layout.addWidget(self.selectable_box)
         export_layout.addLayout(xy_plot_layout)
-        self.export_button = QPushButton("Export!")
+        self.export_button = QPushButton("Save!")
         self.export_button.clicked.connect(self.export_to_csv)
         self.plot_button = QPushButton("Plot!")
         export_layout.addWidget(self.export_button)
@@ -150,6 +155,7 @@ class ControlPanel(QWidget):
             for parameter in parameters[pgn].keys():
                 self.x_box.addItem(parameter)
                 self.y_box.addItem(parameter)
+                self.selectable_box.addItem(parameter)
 
     def _get_table_rows(self, nrows, ncols):
         rows = []
@@ -211,7 +217,7 @@ class ControlPanel(QWidget):
 
     def _init_table(self):
         table = QTableWidget()
-        table.setColumnCount(7)
+        table.setColumnCount(8)
         table.setRowCount(11)
         table.setItem(0, 0, QTableWidgetItem("Name"))
         table.setItem(0, 1, QTableWidgetItem("PGN"))
@@ -220,6 +226,7 @@ class ControlPanel(QWidget):
         table.setItem(0, 4, QTableWidgetItem("Units"))
         table.setItem(0, 5, QTableWidgetItem("Lenght"))
         table.setItem(0, 6, QTableWidgetItem("Start"))
+        table.setItem(0, 7, QTableWidgetItem("Plot"))
         parameters = config.get_parameters()
         i = 1
         for pgn in parameters.keys():
@@ -238,6 +245,7 @@ class ControlPanel(QWidget):
                 table.setItem(i, 4, QTableWidgetItem(parameters[pgn][name]['Measure']))
                 table.setItem(i, 5, QTableWidgetItem(length))
                 table.setItem(i, 6, QTableWidgetItem(start))
+                table.setItem(i, 7, QTableWidgetItem(parameters[pgn][name]['Draw']))
                 i = i+1
         return table
 
@@ -254,14 +262,27 @@ class PlotInterface(QWidget):
         self.setLayout(canvas_layout)
         self.message = QMessageBox()
 
-    def plot(self, parameters):
+    def plot(self, parameters, excluded):
         self.canvas.axes.clear()
         if parameters:
             for parameter in parameters:
-                self.canvas.plot(parameter)
+                self.canvas.plot(parameter, excluded)
         self.message.setWindowTitle("Information!")
         self.message.setText("Plot ready!")
         self.message.show()
+
+
+class HistogramInterface(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.parameters = None
+        self.canvas = HistogramCanvas()
+        self.navigation_bar = NavigationToolbar(self.canvas, self)
+        canvas_layout = QVBoxLayout()
+        canvas_layout.addWidget(self.canvas)
+        canvas_layout.addWidget(self.navigation_bar)
+        self.setLayout(canvas_layout)
+        self.message = QMessageBox()
 
     def plot_x_y(self, parameters, x_label, y_label):
         self.canvas.axes.clear()
@@ -271,7 +292,7 @@ class PlotInterface(QWidget):
                     x = parameter[1]
                 if y_label == parameter[2]:
                     y = parameter[1]
-            self.canvas.plot_x_y(x, y, x_label, y_label)
+            self.canvas.plot(x, y, x_label, y_label)
             self.message.setWindowTitle("Information!")
-            self.message.setText("Plot ready!")
+            self.message.setText("Histogram ready!")
             self.message.show()

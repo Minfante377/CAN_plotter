@@ -13,7 +13,9 @@ class Canvas(FigureCanvasQTAgg):
 
 
 class PlotCanvas(Canvas):
-    def plot(self, data):
+    def plot(self, data, excluded):
+        if data[2] in excluded:
+            return
         self.axes.set_xlabel("Time offset [ms]")
         x = data[0]
         y = data[1]
@@ -22,9 +24,11 @@ class PlotCanvas(Canvas):
         self.axes.set_ylabel(name)
         self.axes.legend()
 
-    def plot_x_y(self, x, y, x_label, y_label):
+
+class HistogramCanvas(Canvas):
+    def plot(self, x, y, x_label, y_label):
         x_unit = config.get_unit(x_label)
         y_unit = config.get_unit(y_label)
         self.axes.set_xlabel("{} [{}]".format(x_label, x_unit))
         self.axes.set_ylabel("{} [{}]".format(y_label, y_unit))
-        self.axes.plot(x, y)
+        self.axes.hist2d(x, y)
