@@ -38,3 +38,11 @@ def get_parameters():
     except Exception as e:
         print(e)
         return {}
+
+
+def get_unit(label):
+    parameters = get_parameters()
+    for pgn in parameters.keys():
+        parameter = parameters[pgn].get(label)
+        if parameter:
+            return parameter['Measure']
