@@ -26,9 +26,11 @@ class PlotCanvas(Canvas):
 
 
 class HistogramCanvas(Canvas):
-    def plot(self, x, y, x_label, y_label):
+    def plot(self, x, y, x_label, y_label, from_x, to_x, step_x, from_y, to_y, step_y):
         x_unit = config.get_unit(x_label)
         y_unit = config.get_unit(y_label)
         self.axes.set_xlabel("{} [{}]".format(x_label, x_unit))
         self.axes.set_ylabel("{} [{}]".format(y_label, y_unit))
-        self.axes.hist2d(x, y)
+        h = self.axes.hist2d(x, y, bins=[step_x, step_y], density = True,
+                             range=[[from_x, to_x], [from_y, to_y]])
+        self.fig.colorbar(h[3], ax=self.axes)

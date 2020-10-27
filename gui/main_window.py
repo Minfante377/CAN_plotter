@@ -8,6 +8,7 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 from helpers.parser import Parser
 from helpers.plotter import PlotCanvas, HistogramCanvas
 from helpers import config
+import statistics
 import os
 import platform
 
@@ -53,7 +54,28 @@ class MainWindow(QMainWindow):
                     self.control_panel.parsed_file)
             x_label = self.control_panel.x_box.currentText()
             y_label = self.control_panel.y_box.currentText()
-            self.histogram_interface.plot_x_y(plotting_data, x_label, y_label)
+            try:
+                from_x = float(self.control_panel.from_x.text())
+                to_x = float(self.control_panel.to_x.text())
+                step_x = int(self.control_panel.step_x.text())
+                from_y = float(self.control_panel.from_y.text())
+                to_y = float(self.control_panel.to_y.text())
+                step_y = int(self.control_panel.step_y.text())
+            except Exception as e:
+                print(e)
+                from_x = 0.0
+                to_x = 0.0
+                step_x = 0.0
+                from_y = 0.0
+                to_y = 0.0
+                step_y = 0.0
+            if self.control_panel.histogram_check.isChecked():
+                selectable = self.control_panel.selectable_box.currentText()
+                self.histogram_interface.get_mean_sd(self.control_panel.parsed_file, x_label,
+                                                     y_label, from_x, to_x, step_x, from_y, to_y,
+                                                     step_y, selectable)
+            self.histogram_interface.plot_x_y(plotting_data, x_label, y_label, from_x, to_x,
+                                              step_x, from_y, to_y, step_y, selectable)
             excluded = config.get_excluded_from_plotting()
             self.plot_interface.plot(plotting_data, excluded)
 
@@ -65,6 +87,7 @@ class ControlPanel(QWidget):
         self.message = QMessageBox()
         import_layout = QHBoxLayout()
         self.import_label = QLabel("Select a trc file to import")
+        self.import_label.setMaximumWidth(200)
         self.import_button = QPushButton("Browse...")
         self.import_button.clicked.connect(self.browse)
         self.parse_button = QPushButton("Parse")
@@ -74,7 +97,6 @@ class ControlPanel(QWidget):
         import_layout.addWidget(self.import_button)
         import_layout.addWidget(self.parse_button)
         export_layout = QVBoxLayout()
-        export_layout.SetMaximumSize = 150
         self.ts_input = QLineEdit(self)
         self.ts_input.setPlaceholderText("Average Time Step (ms)")
         export_layout.addWidget(self.ts_input)
@@ -85,14 +107,36 @@ class ControlPanel(QWidget):
         self.selectable_box = QComboBox()
         self.init_combo_boxes()
         xy_plot_layout = QHBoxLayout()
+        x_layout = QVBoxLayout()
         x_label = QLabel("X:")
+        self.from_x = QLineEdit(self)
+        self.from_x.setPlaceholderText("From:")
+        self.to_x = QLineEdit(self)
+        self.to_x.setPlaceholderText("To:")
+        self.step_x = QLineEdit(self)
+        self.step_x.setPlaceholderText("Window step")
+        x_layout.addWidget(self.x_box)
+        x_layout.addWidget(self.from_x)
+        x_layout.addWidget(self.to_x)
+        x_layout.addWidget(self.step_x)
+        y_layout = QVBoxLayout()
         y_label = QLabel("Y:")
+        self.from_y = QLineEdit(self)
+        self.from_y.setPlaceholderText("From:")
+        self.to_y = QLineEdit(self)
+        self.to_y.setPlaceholderText("To:")
+        self.step_y = QLineEdit(self)
+        self.step_y.setPlaceholderText("Window step")
+        y_layout.addWidget(self.y_box)
+        y_layout.addWidget(self.from_y)
+        y_layout.addWidget(self.to_y)
+        y_layout.addWidget(self.step_y)
         selectable_label = QLabel("Selectable:")
         xy_plot_layout.addWidget(self.histogram_check)
         xy_plot_layout.addWidget(x_label)
-        xy_plot_layout.addWidget(self.x_box)
+        xy_plot_layout.addLayout(x_layout)
         xy_plot_layout.addWidget(y_label)
-        xy_plot_layout.addWidget(self.y_box)
+        xy_plot_layout.addLayout(y_layout)
         xy_plot_layout.addWidget(selectable_label)
         xy_plot_layout.addWidget(self.selectable_box)
         export_layout.addLayout(xy_plot_layout)
@@ -275,16 +319,21 @@ class PlotInterface(QWidget):
 class HistogramInterface(QWidget):
     def __init__(self):
         super().__init__()
+        layout = QHBoxLayout()
         self.parameters = None
         self.canvas = HistogramCanvas()
         self.navigation_bar = NavigationToolbar(self.canvas, self)
         canvas_layout = QVBoxLayout()
         canvas_layout.addWidget(self.canvas)
         canvas_layout.addWidget(self.navigation_bar)
-        self.setLayout(canvas_layout)
+        self.table = QTableWidget()
+        layout.addLayout(canvas_layout)
+        layout.addWidget(self.table)
+        self.setLayout(layout)
         self.message = QMessageBox()
 
-    def plot_x_y(self, parameters, x_label, y_label):
+    def plot_x_y(self, parameters, x_label, y_label, from_x, to_x, step_x, from_y, to_y, step_y,
+                 selectable):
         self.canvas.axes.clear()
         if parameters:
             for parameter in parameters:
@@ -292,7 +341,51 @@ class HistogramInterface(QWidget):
                     x = parameter[1]
                 if y_label == parameter[2]:
                     y = parameter[1]
-            self.canvas.plot(x, y, x_label, y_label)
+            self.canvas.plot(x, y, x_label, y_label, from_x, to_x, step_x, from_y, to_y, step_y)
             self.message.setWindowTitle("Information!")
             self.message.setText("Histogram ready!")
             self.message.show()
+
+    def get_mean_sd(self, data, x_label, y_label, from_x, to_x, step_x,
+                    from_y, to_y, step_y, selectable):
+        ranges_x = self._get_ranges(from_x, to_x, step_x)
+        ranges_y = self._get_ranges(from_y, to_y, step_y)
+        self.table.setColumnCount(len(ranges_x) + 1)
+        self.table.setRowCount(len(ranges_y) + 1)
+        i = 1
+        for range_x in ranges_x:
+            j = 1
+            self.table.setItem(0, i, QTableWidgetItem("{}-{} {}".format(range_x[0], range_x[1],
+                                                                        config.get_unit(x_label))))
+            for range_y in ranges_y:
+                x_ts = []
+                y_ts = []
+                for d in data:
+                    if d[0] == x_label and float(d[2]) in range_x:
+                        x_ts.append(float(d[1]))
+                    if d[0] == y_label and float(d[2]) in range_y:
+                        y_ts.append(float(d[1]))
+                ts = set.intersection(set(x_ts), set(y_ts))
+                values = []
+                for d in data:
+                    if d[0] == selectable and float(d[1]) in ts:
+                        values.append(float(d[2]))
+                if len(values) > 0:
+                    mean = "{}".format(statistics.mean(values))
+                    sd = "{}".format(statistics.stdev(values))
+                else:
+                    mean = ''
+                    sd = ''
+                self.table.setItem(j, 0, QTableWidgetItem("{}-{} {}".format(range_y[0], range_y[1],
+                                                          config.get_unit(y_label))))
+                self.table.setItem(j, i, QTableWidgetItem("Mean: {}, SD: {}".format(mean, sd)))
+                j = j+1
+            i = i+1
+
+    def _get_ranges(self, from_data, to_data, step):
+        range_data = []
+        i = from_data
+        while i < to_data:
+            range_data.append((i, i + step - 1))
+            i = i + step
+        return range_data
