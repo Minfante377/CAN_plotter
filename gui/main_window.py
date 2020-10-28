@@ -1,3 +1,4 @@
+from consts.OS import SEPARATOR
 from PyQt5.QtWidgets import QWidget, QPushButton, QMainWindow, QLabel, QLineEdit
 from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout
 from PyQt5.QtWidgets import QFileDialog
@@ -11,9 +12,7 @@ from helpers import config
 import statistics
 import os
 
-
 MS_TO_HOURS = 1/3600000
-SEPARATOR = "\\"
 
 
 class MainWindow(QMainWindow):

@@ -1,7 +1,8 @@
+from consts.OS import SEPARATOR
 import os
 import json
 
-delimiter = "\\"
+delimiter = SEPARATOR
 
 
 def init_config():
