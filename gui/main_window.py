@@ -179,7 +179,12 @@ class ControlPanel(QWidget):
                                                   "Tcr files(*.trc)")
         if filename:
             self.filename = filename
-            self.import_label.setText(filename.rsplit(os.sep, 1)[1])
+            try:
+                filename = os.path.splitdrive(filename)[1]
+                self.import_label.setText(os.path.split(filename)[-1])
+            except Exception as e:
+                print(e)
+                self.import_label.setText(filename)
 
     def export_to_csv(self):
         filename, _ = QFileDialog.getSaveFileName(self, "Select CSV file location", os.getcwd(),
