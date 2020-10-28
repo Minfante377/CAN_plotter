@@ -357,7 +357,7 @@ class HistogramInterface(QWidget):
         self.message = QMessageBox()
 
     def plot_x_y(self, parameters, x_label, y_label, from_x, to_x, step_x, from_y, to_y, step_y):
-        self.canvas.axes.clear()
+        self.canvas.fig.clear()
         if from_x == to_x:
             self.message.setWindowTitle("Information!")
             self.message.setText("Parameters for histogram missing!")

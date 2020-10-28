@@ -54,6 +54,7 @@ class HistogramCanvas(Canvas):
         super().__init__(self.fig)
 
     def plot(self, x, y, x_label, y_label, from_x, to_x, step_x, from_y, to_y, step_y):
+        self.axes = self.fig.add_subplot(111)
         x_unit = config.get_unit(x_label)
         y_unit = config.get_unit(y_label)
         self.axes.set_xlabel("{} [{}]".format(x_label, x_unit))
