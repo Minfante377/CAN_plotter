@@ -1,3 +1,4 @@
+import random
 import matplotlib
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
@@ -8,24 +9,50 @@ matplotlib.use('Qt5Agg')
 class Canvas(FigureCanvasQTAgg):
     def __init__(self, parent=None, width=5, height=4, dpi=100):
         self.fig = Figure(figsize=(width, height), dpi=dpi)
-        self.axes = self.fig.add_subplot(111)
+        self.axes = []
         super(Canvas, self).__init__(self.fig)
 
 
 class PlotCanvas(Canvas):
-    def plot(self, data, excluded):
-        if data[2] in excluded:
-            return
-        self.axes.set_xlabel("Time offset [ms]")
-        x = data[0]
-        y = data[1]
-        name = data[2]
-        self.axes.plot(x, y, label=name)
-        self.axes.set_ylabel(name)
-        self.axes.legend()
+    def __init(self):
+        self.offset = 0
+        self.axes = []
 
+    def plot(self, parameters, excluded):
+        lines = []
+        self.axes = []
+        self.offset = 1.0
+        for data in parameters:
+            if data[2] in excluded:
+                return
+            x = data[0]
+            y = data[1]
+            name = data[2]
+            if len(self.axes) > 0:
+                ax = self.axes[0].twinx()
+                ax.get_xaxis().set_visible(False)
+                ax.spines['right'].set_position(("axes", self.offset))
+                self.offset += 0.15
+                ax.spines['right'].set_visible(True)
+            else:
+                ax = self.fig.add_subplot()
+                ax.get_xaxis().set_visible(True)
+                self.fig.subplots_adjust(right=0.75)
+            color = (random.uniform(0, 1), random.uniform(0, 1), random.uniform(0, 1))
+            self.axes.append(ax)
+            p, = self.axes[-1].plot(x, y, label=name, color=color)
+            self.axes[-1].set_ylabel(name)
+            self.axes[-1].yaxis.label.set_color(color)
+            self.axes[-1].tick_params(axis='y', colors=color)
+            lines.append(p)
+        self.fig.legend(lines, [l.get_label() for l in lines])
 
 class HistogramCanvas(Canvas):
+    def __init__(self):
+        self.fig = Figure(figsize=(5, 4), dpi=100)
+        self.axes = self.fig.add_subplot(111)
+        super().__init__(self.fig)
+
     def plot(self, x, y, x_label, y_label, from_x, to_x, step_x, from_y, to_y, step_y):
         x_unit = config.get_unit(x_label)
         y_unit = config.get_unit(y_label)

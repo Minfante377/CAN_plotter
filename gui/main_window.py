@@ -330,10 +330,11 @@ class PlotInterface(QWidget):
         self.message = QMessageBox()
 
     def plot(self, parameters, excluded):
+        for ax in self.canvas.axes:
+            ax.remove()
         self.canvas.axes.clear()
-        if parameters:
-            for parameter in parameters:
-                self.canvas.plot(parameter, excluded)
+        self.canvas.offset = 0
+        self.canvas.plot(parameters, excluded)
         self.message.setWindowTitle("Information!")
         self.message.setText("Plot ready!")
         self.message.show()
