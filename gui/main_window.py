@@ -1,4 +1,3 @@
-from consts.OS import SEPARATOR
 from PyQt5.QtWidgets import QWidget, QPushButton, QMainWindow, QLabel, QLineEdit
 from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout
 from PyQt5.QtWidgets import QFileDialog
@@ -180,7 +179,7 @@ class ControlPanel(QWidget):
                                                   "Tcr files(*.trc)")
         if filename:
             self.filename = filename
-            self.import_label.setText(filename.rsplit(SEPARATOR, 1)[1])
+            self.import_label.setText(filename.rsplit(os.sep, 1)[1])
 
     def export_to_csv(self):
         filename, _ = QFileDialog.getSaveFileName(self, "Select CSV file location", os.getcwd(),

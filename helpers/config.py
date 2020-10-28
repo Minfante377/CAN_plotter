@@ -1,8 +1,7 @@
-from consts.OS import SEPARATOR
 import os
 import json
 
-delimiter = SEPARATOR
+delimiter = os.sep
 
 
 def init_config():
