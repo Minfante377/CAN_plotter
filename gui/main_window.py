@@ -12,6 +12,8 @@ import statistics
 import os
 import platform
 
+
+MS_TO_HOURS = 1/3600000
 if platform.system() == "Windows":
     SEPARATOR = "\\"
 else:
@@ -32,6 +34,7 @@ class MainWindow(QMainWindow):
         self.show()
 
     def initUI(self):
+        self.message = QMessageBox()
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
         layout = QVBoxLayout()
@@ -43,6 +46,10 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self.plot_interface, "Plots")
         self.histogram_interface = HistogramInterface()
         self.tabs.addTab(self.histogram_interface, "Histograms")
+        self.cost_interface = FuelCostInterface()
+        self.control_panel.update_button.clicked.connect(self.cost_interface.init_combo_boxes)
+        self.cost_interface.cost_button.clicked.connect(self.calculate_costs)
+        self.tabs.addTab(self.cost_interface, "Fuel Cost")
         layout.addWidget(self.tabs)
         widget = QWidget()
         widget.setLayout(layout)
@@ -79,11 +86,20 @@ class MainWindow(QMainWindow):
             excluded = config.get_excluded_from_plotting()
             self.plot_interface.plot(plotting_data, excluded)
 
+    def calculate_costs(self):
+        if self.control_panel.parsed_file:
+            self.cost_interface.calculate_costs(self.control_panel.parsed_file)
+        else:
+            self.message.setWindowTitle("Information!")
+            self.message.setText("You need to parse a file first!")
+            self.message.show()
+
 
 class ControlPanel(QWidget):
 
     def __init__(self):
         super().__init__()
+        self.parsed_file = None
         self.message = QMessageBox()
         import_layout = QHBoxLayout()
         self.import_label = QLabel("Select a trc file to import")
@@ -397,3 +413,109 @@ class HistogramInterface(QWidget):
             range_data.append((i, i + step - 1))
             i = i + step
         return range_data
+
+
+class FuelCostInterface(QWidget):
+    def __init__(self):
+        super().__init__()
+        layout = QVBoxLayout()
+        self.parameters_layout = QVBoxLayout()
+        self.cost_input_layout = QHBoxLayout()
+        self.cost_input = QLineEdit()
+        self.cost_input.setMaximumWidth(300)
+        self.cost_input.setPlaceholderText("Fuel cost (£/l)")
+        self.cost_input_box = QComboBox()
+        self.cost_input_layout.addWidget(self.cost_input)
+        self.cost_input_layout.addWidget(self.cost_input_box)
+        self.battery_saving_layout = QHBoxLayout()
+        self.battery_saving = QLineEdit()
+        self.battery_saving.setMaximumWidth(300)
+        self.battery_saving.setPlaceholderText("Fuel saving rate on discharge (%)")
+        self.battery_saving_box = QComboBox()
+        self.battery_saving_layout.addWidget(self.battery_saving)
+        self.battery_saving_layout.addWidget(self.battery_saving_box)
+        self.torque_from = QLineEdit()
+        self.torque_from.setMaximumWidth(300)
+        self.torque_from.setPlaceholderText("Torque minimum to start discharging (%)")
+        self.torque_to = QLineEdit()
+        self.torque_to.setMaximumWidth(300)
+        self.torque_to.setPlaceholderText("Torque maximum to stop discharging (%)")
+        self.parameters_layout.addLayout(self.cost_input_layout)
+        self.parameters_layout.addLayout(self.battery_saving_layout)
+        self.parameters_layout.addWidget(self.torque_from)
+        self.parameters_layout.addWidget(self.torque_to)
+        self.cost_layout = QHBoxLayout()
+        info_label = QLabel("Total cost: ")
+        self.cost_label = QLabel("")
+        self.cost_button = QPushButton("Calculate cost")
+        self.cost_layout.addWidget(info_label)
+        self.cost_layout.addWidget(self.cost_label)
+        layout.addLayout(self.parameters_layout)
+        layout.addLayout(self.cost_layout)
+        layout.addWidget(self.cost_button)
+        self.setLayout(layout)
+        self.message = QMessageBox()
+        self.init_combo_boxes()
+
+    def calculate_costs(self, data):
+        try:
+            fuel_cost = float(self.cost_input.text())
+            saving_rate = float(self.battery_saving.text())
+            torque_from = float(self.torque_from.text())
+            torque_to = float(self.torque_to.text())
+        except Exception as e:
+            print(e)
+            self.message.setWindowTitle("Information!")
+            self.message.setText("Some parameters are missing or wrong!")
+            self.message.show()
+            return
+        torque_label = self.battery_saving_box.currentText()
+        fuel_rate_label = self.cost_input_box.currentText()
+        fuel_data = []
+        torque_data = []
+        for d in data:
+            if d[0] == fuel_rate_label:
+                fuel_data.append((float(d[1]), float(d[2])))
+            if d[0] == torque_label:
+                torque_data.append((float(d[1]), float(d[2])))
+        torque_saving_ranges = self._get_saving_ranges(torque_data, torque_from, torque_to)
+        cost = self._get_fuel_cost(fuel_data, torque_saving_ranges, saving_rate, fuel_cost)
+        self.cost_label.setText(str(cost))
+
+    def init_combo_boxes(self):
+        parameters = config.get_parameters()
+        self.battery_saving.clear()
+        self.cost_input_box.clear()
+        for pgn in parameters.keys():
+            for parameter in parameters[pgn].keys():
+                self.battery_saving_box.addItem(parameter)
+                self.cost_input_box.addItem(parameter)
+
+    def _get_saving_ranges(self, torque_data, torque_from, torque_to):
+        ranges = []
+        for i in range(0, len(torque_data)):
+            if torque_data[i][1] < torque_to and torque_data[i][1] > torque_from:
+                min_range = torque_data[i][0]
+                i = i + 1
+                while i < len(torque_data) and torque_data[i][1] < torque_to \
+                        and torque_data[i][1] > torque_from:
+                    i = i + 1
+                max_range = torque_data[i-1][0]
+                ranges.append((min_range, max_range))
+        return ranges
+
+    def _get_fuel_cost(self, fuel_data, torque_saving_ranges, saving_rate, fuel_cost):
+        cost = 0
+        for i in range(0, len(fuel_data) - 1):
+            for r in torque_saving_ranges:
+                if fuel_data[i][0] > r[0] and fuel_data[i][0] < r[1]:
+                    fuel_rate_a = fuel_data[i][1] * (1 - saving_rate/100)
+                else:
+                    fuel_rate_a = fuel_data[i][1]
+                if fuel_data[i+1][0] > r[0] and fuel_data[i+1][0] < r[1]:
+                    fuel_rate_b = fuel_data[i+1][1] * (1 - saving_rate/100)
+                else:
+                    fuel_rate_b = fuel_data[i+1][1]
+            delta_t = fuel_data[i+1][0] - fuel_data[i][0]
+            cost = cost + (fuel_rate_b + fuel_rate_a) / 2 * fuel_cost * (delta_t * MS_TO_HOURS)
+        return cost
