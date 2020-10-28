@@ -66,17 +66,17 @@ class MainWindow(QMainWindow):
                 print(e)
                 from_x = 0.0
                 to_x = 0.0
-                step_x = 0.0
+                step_x = 1
                 from_y = 0.0
                 to_y = 0.0
-                step_y = 0.0
+                step_y = 1
             if self.control_panel.histogram_check.isChecked():
                 selectable = self.control_panel.selectable_box.currentText()
                 self.histogram_interface.get_mean_sd(self.control_panel.parsed_file, x_label,
                                                      y_label, from_x, to_x, step_x, from_y, to_y,
                                                      step_y, selectable)
             self.histogram_interface.plot_x_y(plotting_data, x_label, y_label, from_x, to_x,
-                                              step_x, from_y, to_y, step_y, selectable)
+                                              step_x, from_y, to_y, step_y)
             excluded = config.get_excluded_from_plotting()
             self.plot_interface.plot(plotting_data, excluded)
 
@@ -355,9 +355,13 @@ class HistogramInterface(QWidget):
         self.setLayout(layout)
         self.message = QMessageBox()
 
-    def plot_x_y(self, parameters, x_label, y_label, from_x, to_x, step_x, from_y, to_y, step_y,
-                 selectable):
+    def plot_x_y(self, parameters, x_label, y_label, from_x, to_x, step_x, from_y, to_y, step_y):
         self.canvas.axes.clear()
+        if from_x == to_x:
+            self.message.setWindowTitle("Information!")
+            self.message.setText("Parameters for histogram missing!")
+            self.message.show()
+            return
         if parameters:
             for parameter in parameters:
                 if x_label == parameter[2]:
