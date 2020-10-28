@@ -10,14 +10,10 @@ from helpers.plotter import PlotCanvas, HistogramCanvas
 from helpers import config
 import statistics
 import os
-import platform
 
 
 MS_TO_HOURS = 1/3600000
-if platform.system() == "Windows":
-    SEPARATOR = "\\"
-else:
-    SEPARATOR = "/"
+SEPARATOR = "\\"
 
 
 class MainWindow(QMainWindow):
