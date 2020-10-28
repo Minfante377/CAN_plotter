@@ -1,11 +1,7 @@
 import os
 import json
-import platform
 
-if platform.system() == "Windows":
-    delimiter = "\\"
-else:
-    delimiter = "/"
+delimiter = "\\"
 
 
 def init_config():
