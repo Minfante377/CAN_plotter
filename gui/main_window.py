@@ -260,24 +260,19 @@ class ControlPanel(QWidget):
         avg_parameters = []
         for pgn in parameters.keys():
             for parameter in parameters[pgn].keys():
-                last_time = 0
-                value_sum = 0
-                count = 0
+                last_time = float(self.parsed_file[0][1])
+                value_sum = float(self.parsed_file[0][2])
+                count = 1
                 for d in self.parsed_file:
                     if d[0] == parameter:
                         if float(d[1]) - last_time < ts:
                             value_sum = value_sum + float(d[2])
                             count = count + 1
-                            last_time = float(d[1])
                         else:
-                            if count == 0:
-                                value_sum = float(d[2])
-                                count = 1
-                                last_time = float(d[1])
                             avg_parameters.append((d[0], str(last_time), str(value_sum / count),
                                                    d[3]))
-                            value_sum = 0
-                            count = 0
+                            value_sum = float(d[2])
+                            count = 1
                             last_time = float(d[1])
         return avg_parameters
 
@@ -359,10 +354,19 @@ class HistogramInterface(QWidget):
     def plot_x_y(self, parameters, x_label, y_label, from_x, to_x, step_x, from_y, to_y, step_y):
         self.canvas.fig.clear()
         if from_x == to_x:
-            self.message.setWindowTitle("Information!")
-            self.message.setText("Parameters for histogram missing!")
+            self.message.setText("Parameters for histogram missing!.\nTrying with default values.")
             self.message.show()
-            return
+            x_label, y_label = config.get_default_histogram_labels(parameters)
+            from_x = 600
+            to_x = 10000
+            step_x = 100
+            from_y = 0
+            to_y = 200
+            step_y = 10
+            if not x_label or not y_label:
+                return
+        else:
+            self.message.setText("Histogram ready!")
         if parameters:
             for parameter in parameters:
                 if x_label == parameter[2]:
@@ -371,7 +375,6 @@ class HistogramInterface(QWidget):
                     y = parameter[1]
             self.canvas.plot(x, y, x_label, y_label, from_x, to_x, step_x, from_y, to_y, step_y)
             self.message.setWindowTitle("Information!")
-            self.message.setText("Histogram ready!")
             self.message.show()
 
     def get_mean_sd(self, data, x_label, y_label, from_x, to_x, step_x,

@@ -24,11 +24,11 @@ class PlotCanvas(Canvas):
         self.offset = 1.0
         for data in parameters:
             if data[2] in excluded:
-                return
+                continue
             x = data[0]
             y = data[1]
             name = data[2]
-            if len(self.axes) > 0:
+            if self.axes:
                 ax = self.axes[0].twinx()
                 ax.get_xaxis().set_visible(False)
                 ax.spines['right'].set_position(("axes", self.offset))
