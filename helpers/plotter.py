@@ -46,6 +46,8 @@ class PlotCanvas(Canvas):
             self.axes[-1].tick_params(axis='y', colors=color)
             lines.append(p)
         self.fig.legend(lines, [l.get_label() for l in lines])
+        for axe in self.axes:
+            axe.autoscale()
 
 class HistogramCanvas(Canvas):
     def __init__(self):
